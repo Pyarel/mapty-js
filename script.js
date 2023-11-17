@@ -12,6 +12,7 @@ class Workout {
   //public fields
   date = new Date();
   id = (Date.now() + '').slice(-10);
+  // clicks = 0;
 
   constructor(coords, distance, duration) {
     this.coords = coords; // [lat,lng]
@@ -24,12 +25,13 @@ class Workout {
     const months = ['January', 'February', 'March', 'April', 'May', 
     'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     // prettier-ignorecl
-    console.log(this.type[0].toUpperCase());
-    console.log(this.type);
     this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on 
     ${months[this.date.getMonth()]}
     ${this.date.getDate()}`;
   }
+  // click() {
+  //   this.clicks++;
+  // }
 }
 
 class Running extends Workout {
@@ -68,11 +70,19 @@ class Cycling extends Workout {
 class App {
   #map;
   #mapEvent;
+  #mapZoomLevel = 13;
   #workouts = [];
   constructor() {
+    //Get user's position
     this._getPosition();
+
+    //Get data from local storage
+    this._getLocalStorage();
+
+    //Attach event handlers
     form.addEventListener('submit', this._newWorkout.bind(this));
     inputType.addEventListener('change', this._toggleElevationField);
+    containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
   }
   _getPosition() {
     // Using Geolocation api
@@ -96,7 +106,7 @@ class App {
 
     //   Install leaflet library and copy the code from leaflet overview page
     //L is a namespace by leaflet which provides methods for us to use
-    this.#map = L.map('map').setView(coords, 13); //Create a map and set the view(lat,lng) on the map, 13 is to specify zoom in/out
+    this.#map = L.map('map').setView(coords, this.#mapZoomLevel); //Create a map and set the view(lat,lng) on the map, 13 is to specify zoom in/out
     //   console.log(map);
 
     // Load and display tile layer on the map
@@ -113,6 +123,9 @@ class App {
 
     // Add a click event listener on map
     this.#map.on('click', this._showForm.bind(this));
+    this.#workouts.forEach(work => {
+      this._renderWorkoutMarker(work);
+    });
   }
   _showForm(mapE) {
     // console.log(mapE);
@@ -183,6 +196,9 @@ class App {
     this._renderWorkout(workout);
     //Clear input fields + hide form
     this._hideForm();
+
+    //Set local storage to all workouts
+    this._setLocalStorage();
   }
   _renderWorkoutMarker(workout) {
     //Display clickable icons on the map and bind a popup to marker click
@@ -253,10 +269,51 @@ class App {
     }
     form.insertAdjacentHTML('afterend', html);
   }
+  _moveToPopup(e) {
+    const workoutEl = e.target.closest('.workout');
+    if (!workoutEl) return;
+
+    const workout = this.#workouts.find(
+      work => work.id === workoutEl.dataset.id
+    );
+
+    this.#map.setView(workout.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: {
+        duration: 1,
+      },
+    });
+
+    // //using the public interface
+    // workout.click();
+  }
+  _setLocalStorage() {
+    localStorage.setItem('workouts', JSON.stringify(this.#workouts));
+  }
+  _getLocalStorage() {
+    const data = localStorage.getItem('workouts');
+    if (!data) return;
+    this.#workouts = JSON.parse(data);
+    this.#workouts.forEach(work => {
+      this._renderWorkout(work);
+    });
+  }
+  reset() {
+    localStorage.removeItem('workouts');
+    location.reload();
+  }
 }
 
 const app = new App();
 
+//Reset the app
+// app.reset()
+
 /**
- *
+ * Features to be added::
+ * Ability to edit a workout
+ * Ability to delete a workout
+ * Ability to delete all workouts
+ * Ability to sort workouts by certain field
+ * Re-build running and cycling objects coming from local storage
  */
